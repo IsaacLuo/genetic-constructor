@@ -17,23 +17,24 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
 import { dispatch } from '../store/index';
-import { uiSetGrunt, uiShowAuthenticationForm, uiShowUserWidget } from '../actions/ui';
+import { uiSetGrunt, uiShowAuthenticationForm } from '../actions/ui';
 import { projectOpen } from '../actions/projects';
 import { getLocal, setLocal } from '../utils/localstorage';
 
 import '../styles/LandingPage.css';
 
+const allowedModals = ['signin', 'register', 'account', 'reset', 'forgot'];
+
 export class LandingPage extends Component {
   static propTypes = {
     uiShowAuthenticationForm: PropTypes.func.isRequired,
-    uiShowUserWidget: PropTypes.func.isRequired,
     uiSetGrunt: PropTypes.func.isRequired,
     projectOpen: PropTypes.func.isRequired,
     location: PropTypes.shape({
       query: PropTypes.object,
     }).isRequired,
     params: PropTypes.shape({
-      comp: PropTypes.oneOf(['signin', 'register', 'account', 'reset', 'forgot']),
+      comp: PropTypes.oneOf(allowedModals),
     }),
     user: PropTypes.object,
   };
@@ -77,10 +78,21 @@ export class LandingPage extends Component {
 
     //tracking with heap
     if (heap && heap.track) {
-      heap.track('Register_Interest', { type: data });
+      heap.track('Register_Interest', data);
     }
 
-    dispatch(uiShowAuthenticationForm('register', { registerType: data }));
+    let { modalType, accountType } = data;
+    if (allowedModals.indexOf(modalType) < 0) {
+      modalType = 'register';
+    }
+    if (['free', 'paid'].indexOf(modalType) < 0) {
+      accountType = 'free';
+    }
+    const params = modalType === 'register' ?
+      { registerType: accountType } :
+      null;
+
+    dispatch(uiShowAuthenticationForm(modalType, params));
   }
 
   state = {
@@ -89,7 +101,10 @@ export class LandingPage extends Component {
 
   componentDidMount() {
     const authForm = this.props.params.comp;
-    if (authForm) {
+
+    if (authForm === 'landing') {
+      //do nothing, fall through
+    } else if (authForm) {
       this.props.uiShowAuthenticationForm(authForm);
     } else if (this.props.user && this.props.user.userid && (this.props.location.query && !this.props.location.query.noredirect)) {
       // if not showing an auth form goto most recent project or demo project
@@ -139,7 +154,6 @@ function mapStateToProps(state) {
 
 export default connect(mapStateToProps, {
   uiShowAuthenticationForm,
-  uiShowUserWidget,
   uiSetGrunt,
   projectOpen,
 })(LandingPage);
